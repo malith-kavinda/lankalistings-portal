@@ -7,7 +7,4 @@ coverage/
 !.env.example
 *.log
 .DS_Store
-
-dist
 tsconfig.tsbuildinfo
-coverage
