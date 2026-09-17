@@ -26,7 +26,7 @@ describe("BatchProgressRoute", () => {
               processing: 0,
               awaiting_review: 2,
               completed: 0,
-              no_ad_found: 0,
+              no_ads: 0,
               failed: 1,
               needs_attention: 0,
             },
@@ -43,7 +43,7 @@ describe("BatchProgressRoute", () => {
       "Processing",
       "Awaiting review",
       "Completed",
-      "No ad found",
+      "No ads found",
       "Failed",
       "Needs attention",
     ]) {

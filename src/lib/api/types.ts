@@ -26,33 +26,36 @@ export type ApiErrorDetail = {
 };
 
 export type ItemStatus =
-  | "queued"
+  | "uploaded"
   | "preprocessing"
-  | "ocr_running"
-  | "llm_running"
-  | "persisting"
+  | "ocr_processing"
+  | "llm_processing"
   | "awaiting_review"
-  | "no_ad_found"
-  | "failed"
+  | "no_ads"
   | "needs_attention"
+  | "failed"
   | "completed";
 
-export type ItemStage = "queued" | "preprocess" | "ocr" | "extract" | "persist" | "done";
+export type ItemStage = "queue" | "preprocess" | "ocr" | "llm" | "review" | "done";
 
-export type BatchStatus =
-  | "queued"
-  | "processing"
-  | "completed"
-  | "partial_failed"
-  | "failed"
-  | "cancelled";
+export type BatchStatus = "queued" | "processing" | "completed" | "partial_failed" | "failed";
+
+/** The seven keys `counts` always carries, in pipeline order (FR-JOB-001). */
+export const COUNT_KEYS = [
+  "queued",
+  "processing",
+  "awaiting_review",
+  "no_ads",
+  "needs_attention",
+  "failed",
+  "completed",
+] as const;
 
 /** A batch stops changing at these, so polling stops too. */
 export const TERMINAL_BATCH_STATUSES: readonly BatchStatus[] = [
   "completed",
   "partial_failed",
   "failed",
-  "cancelled",
 ];
 
 export type CandidateState = "pending_publish" | "linked" | "superseded" | "discarded";
@@ -143,12 +146,19 @@ export type Candidate = {
   reviewer_id: string | null;
 };
 
+/** `[left, top, width, height]` in the pixel space of the image the engine actually read. */
+export type OcrBox = [left: number, top: number, width: number, height: number];
+
 export type OcrBlock = {
   id: number;
   text: string;
   confidence?: number | null;
-  box?: { x: number; y: number; width: number; height: number } | null;
+  box?: OcrBox | null;
+  /** How the box was arrived at: `engine`, `model_estimate`, `synthetic`, or `none`. */
   box_source?: string | null;
+  detector?: string | null;
+  line_count?: number | null;
+  source_ref?: string | null;
 };
 
 export type CandidateEvidence = {
@@ -166,6 +176,10 @@ export type CandidateEvidence = {
   model: string | null;
   ocr_engine: string | null;
   ocr_languages: string | null;
+  /** The page size the block coordinates are expressed in — the preprocessed image, not the scan. */
+  ocr_width: number | null;
+  ocr_height: number | null;
+  ocr_input_derivative_id: string | null;
 };
 
 export type CandidateDetail = {

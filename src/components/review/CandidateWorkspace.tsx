@@ -239,10 +239,13 @@ export function CandidateWorkspace({
             Source page
           </h2>
           <SourceImageViewer
-            src={assetUrl(detail.source_asset_id, "original")}
+            ocrInputSrc={assetUrl(detail.source_asset_id, "ocr_input")}
+            originalSrc={assetUrl(detail.source_asset_id, "original")}
             alt={`Scanned page ${detail.source_filename}`}
             blocks={evidence.blocks}
             highlightedBlockIds={evidence.source_block_ids}
+            pageWidth={evidence.ocr_width}
+            pageHeight={evidence.ocr_height}
           />
           <OcrTextPanel
             text={evidence.ocr_text || evidence.source_text}

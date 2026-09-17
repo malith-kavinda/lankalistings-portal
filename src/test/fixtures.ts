@@ -7,6 +7,7 @@ import type {
   IngestionBatch,
   IngestionItem,
   IngestionLimits,
+  OcrBox,
 } from "../lib/api/types";
 
 export const limits: IngestionLimits = {
@@ -71,6 +72,9 @@ export function makeDetail(overrides: Partial<CandidateDetail> = {}): CandidateD
       model: "fake/rule_based",
       ocr_engine: "tesseract",
       ocr_languages: "sin+eng",
+      ocr_width: 200,
+      ocr_height: 100,
+      ocr_input_derivative_id: "drv_01",
       ...overrides.evidence,
     },
     item_id: candidate.item_id,
@@ -133,7 +137,7 @@ export function makeBatch(overrides: Partial<IngestionBatch> = {}): IngestionBat
       processing: 0,
       awaiting_review: items.length,
       completed: 0,
-      no_ad_found: 0,
+      no_ads: 0,
       failed: 0,
       needs_attention: 0,
     },

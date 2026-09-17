@@ -6,6 +6,7 @@
  * when something has gone wrong.
  */
 
+import { COUNT_KEYS } from "../../lib/api/types";
 import type { BatchStatus } from "../../lib/api/types";
 
 /** Ordered as the pipeline runs, so the bar reads left to right as work moving through it. */
@@ -13,11 +14,11 @@ const BUCKETS = [
   { key: "queued", label: "Queued", tone: "bg-line" },
   { key: "processing", label: "Processing", tone: "bg-frame" },
   { key: "awaiting_review", label: "Awaiting review", tone: "bg-amber" },
-  { key: "completed", label: "Completed", tone: "bg-emerald" },
-  { key: "no_ad_found", label: "No ad found", tone: "bg-subtle" },
-  { key: "failed", label: "Failed", tone: "bg-danger" },
+  { key: "no_ads", label: "No ads found", tone: "bg-subtle" },
   { key: "needs_attention", label: "Needs attention", tone: "bg-danger/60" },
-] as const;
+  { key: "failed", label: "Failed", tone: "bg-danger" },
+  { key: "completed", label: "Completed", tone: "bg-emerald" },
+] as const satisfies readonly { key: (typeof COUNT_KEYS)[number]; label: string; tone: string }[];
 
 type BatchCountsBarProps = {
   counts: Record<string, number>;

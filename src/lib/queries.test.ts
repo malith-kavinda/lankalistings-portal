@@ -13,7 +13,7 @@ describe("batchRefetchInterval", () => {
     expect(batchRefetchInterval(undefined)).toBe(BATCH_POLL_MS);
   });
 
-  it.each(["completed", "partial_failed", "failed", "cancelled"] as const)(
+  it.each(["completed", "partial_failed", "failed"] as const)(
     "stops once the batch is %s",
     (status) => {
       expect(batchRefetchInterval(status)).toBe(false);

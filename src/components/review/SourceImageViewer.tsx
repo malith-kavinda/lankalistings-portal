@@ -5,8 +5,12 @@
  * *which* part of the page the pipeline read it from; without that they are comparing the model's
  * answer against their own re-reading of the whole image, which is slower and no more reliable.
  *
- * Boxes are drawn in percentages of the OCR's own coordinate space, so zoom and rotation move them
- * with the image rather than leaving them behind.
+ * Which image is shown matters. Block coordinates are pixels in the *preprocessed* page — deskewed
+ * and rescaled — so drawing them over the original scan puts every box slightly off, pointing at
+ * the wrong text. That is worse than no overlay. So the OCR input is what the overlay is drawn on,
+ * and the original is a click away for anyone who wants the untouched scan.
+ *
+ * Boxes are positioned as percentages of the OCR page size, so zoom and rotation carry them along.
  */
 
 import { Maximize2, Minus, Plus, RotateCw } from "lucide-react";
@@ -14,10 +18,16 @@ import { useMemo, useState } from "react";
 import type { OcrBlock } from "../../lib/api/types";
 
 type SourceImageViewerProps = {
-  src: string;
+  /** The preprocessed page the coordinates belong to. */
+  ocrInputSrc: string;
+  /** The untouched scan. */
+  originalSrc: string;
   alt: string;
   blocks: OcrBlock[];
   highlightedBlockIds: number[];
+  /** The OCR page size. Without it the overlay cannot be placed, so it is not drawn. */
+  pageWidth: number | null;
+  pageHeight: number | null;
 };
 
 const ZOOM_STEP = 0.25;
@@ -25,32 +35,28 @@ const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 4;
 
 export function SourceImageViewer({
-  src,
+  ocrInputSrc,
+  originalSrc,
   alt,
   blocks,
   highlightedBlockIds,
+  pageWidth,
+  pageHeight,
 }: SourceImageViewerProps) {
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [failed, setFailed] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(false);
 
   const highlighted = useMemo(() => new Set(highlightedBlockIds), [highlightedBlockIds]);
+  const src = showOriginal ? originalSrc : ocrInputSrc;
 
-  // The OCR reports pixel boxes; the overlay needs fractions. Deriving the extent from the blocks
-  // themselves avoids a second source of truth for the page size.
-  const extent = useMemo(() => {
-    let width = 0;
-    let height = 0;
-    for (const block of blocks) {
-      if (block.box) {
-        width = Math.max(width, block.box.x + block.box.width);
-        height = Math.max(height, block.box.y + block.box.height);
-      }
-    }
-    return { width, height };
-  }, [blocks]);
-
-  const canOverlay = extent.width > 0 && extent.height > 0;
+  // The server's recorded page size, not the extent of the blocks: the furthest block rarely
+  // reaches the page edge, and using it as the page would stretch every box.
+  const extent = { width: pageWidth ?? 0, height: pageHeight ?? 0 };
+  const hasBoxes = blocks.some((block) => block.box);
+  // Never over the original: the coordinates do not belong to it.
+  const canOverlay = extent.width > 0 && extent.height > 0 && hasBoxes && !showOriginal;
 
   return (
     <div className="flex flex-col gap-2">
@@ -93,13 +99,20 @@ export function SourceImageViewer({
         >
           <Maximize2 size={14} />
         </button>
+        <button
+          type="button"
+          onClick={() => setShowOriginal((current) => !current)}
+          className="ml-auto text-xs font-bold text-emerald underline underline-offset-2"
+        >
+          {showOriginal ? "Show OCR input" : "Show original scan"}
+        </button>
         <a
           href={src}
           target="_blank"
           rel="noreferrer"
-          className="ml-auto text-xs font-bold text-emerald underline underline-offset-2"
+          className="text-xs font-bold text-emerald underline underline-offset-2"
         >
-          Open full size
+          Full size
         </a>
       </div>
 
@@ -126,6 +139,7 @@ export function SourceImageViewer({
                     return null;
                   }
                   const isHighlighted = highlighted.has(block.id);
+                  const [left, top, boxWidth, boxHeight] = block.box;
                   return (
                     <span
                       key={block.id}
@@ -136,10 +150,10 @@ export function SourceImageViewer({
                           : "border-frame/30 bg-transparent"
                       }`}
                       style={{
-                        left: `${(block.box.x / extent.width) * 100}%`,
-                        top: `${(block.box.y / extent.height) * 100}%`,
-                        width: `${(block.box.width / extent.width) * 100}%`,
-                        height: `${(block.box.height / extent.height) * 100}%`,
+                        left: `${(left / extent.width) * 100}%`,
+                        top: `${(top / extent.height) * 100}%`,
+                        width: `${(boxWidth / extent.width) * 100}%`,
+                        height: `${(boxHeight / extent.height) * 100}%`,
                       }}
                     />
                   );
@@ -149,9 +163,14 @@ export function SourceImageViewer({
         )}
       </div>
 
-      {!canOverlay && blocks.length > 0 ? (
+      {showOriginal ? (
         <p className="text-xs text-subtle">
-          This extraction has no box coordinates, so the blocks cannot be drawn on the page.
+          Showing the untouched scan. Block outlines are hidden because their coordinates belong to
+          the preprocessed page, not this one.
+        </p>
+      ) : !canOverlay && blocks.length > 0 ? (
+        <p className="text-xs text-subtle">
+          This extraction records no page size, so the blocks cannot be placed on the image.
         </p>
       ) : null}
     </div>

@@ -5,20 +5,24 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { SourceImageViewer } from "./SourceImageViewer";
 import { renderWithProviders } from "../../test/render";
+import type { OcrBox } from "../../lib/api/types";
 
 const BLOCKS = [
-  { id: 1, text: "Honda Fit 2014", box: { x: 0, y: 0, width: 100, height: 20 } },
-  { id: 2, text: "Rs. 5,750,000", box: { x: 0, y: 30, width: 100, height: 20 } },
-  { id: 3, text: "Unrelated", box: { x: 0, y: 60, width: 200, height: 40 } },
+  { id: 1, text: "Honda Fit 2014", box: [0, 0, 100, 20] satisfies OcrBox },
+  { id: 2, text: "Rs. 5,750,000", box: [0, 30, 100, 20] satisfies OcrBox },
+  { id: 3, text: "Unrelated", box: [0, 60, 200, 40] satisfies OcrBox },
 ];
 
 function renderViewer(props: Partial<Parameters<typeof SourceImageViewer>[0]> = {}) {
   return renderWithProviders(
     <SourceImageViewer
-      src="http://localhost:8001/api/v1/media/assets/ast_1/original"
+      ocrInputSrc="http://localhost:8001/api/v1/media/assets/ast_1/ocr_input"
+      originalSrc="http://localhost:8001/api/v1/media/assets/ast_1/original"
       alt="Scanned page page-3.png"
       blocks={BLOCKS}
       highlightedBlockIds={[1, 2]}
+      pageWidth={200}
+      pageHeight={100}
       {...props}
     />,
   );
@@ -78,12 +82,29 @@ describe("SourceImageViewer", () => {
     expect(screen.getByText(/extracted text below is still the record/)).toBeInTheDocument();
   });
 
-  it("says why there is no overlay when the extraction has no coordinates", () => {
-    renderViewer({
-      blocks: [{ id: 1, text: "Honda Fit 2014", box: null }],
-      highlightedBlockIds: [1],
-    });
+  it("says why there is no overlay when the extraction records no page size", () => {
+    renderViewer({ pageWidth: null, pageHeight: null });
 
-    expect(screen.getByText(/no box coordinates/)).toBeInTheDocument();
+    expect(screen.getByText(/records no page size/)).toBeInTheDocument();
+  });
+
+  it("hides the overlay on the original scan, whose pixels the coordinates do not describe", async () => {
+    const user = userEvent.setup();
+    const { container } = renderViewer();
+    expect(container.querySelectorAll("span[title^='Block']")).toHaveLength(3);
+
+    await user.click(screen.getByRole("button", { name: /show original scan/i }));
+
+    expect(container.querySelectorAll("span[title^='Block']")).toHaveLength(0);
+    expect(screen.getByText(/coordinates belong to the preprocessed page/)).toBeInTheDocument();
+  });
+
+  it("shows the OCR input by default, because that is the space the boxes are in", () => {
+    renderViewer();
+
+    expect(screen.getByRole("img", { name: /scanned page/i })).toHaveAttribute(
+      "src",
+      expect.stringContaining("/ocr_input"),
+    );
   });
 });
